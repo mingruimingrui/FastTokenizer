@@ -31,6 +31,7 @@ class Segmenter {
     public:
         Segmenter();
         ~Segmenter();
+        Segmenter* clone();
 
         // Normalize
         void normalize(const std::string& text, std::string& out) {

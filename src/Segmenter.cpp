@@ -1,8 +1,8 @@
-#include <fasttokenizer/Segmenter.h>
-
 #include <unicode/regex.h>
 #include <unicode/brkiter.h>
 #include <unicode/normalizer2.h>
+
+#include "fasttokenizer/Segmenter.h"
 
 using namespace icu;
 
@@ -25,6 +25,12 @@ Segmenter::~Segmenter() {
     delete word_matcher;
     delete other_letter_matcher;
     delete break_iterator;
+}
+
+Segmenter* Segmenter::clone() {
+    // Note this function is just a dummy for now.
+    // Will be used when segmenter takes states for skipping patterns.
+    return new Segmenter();
 }
 
 /**
