@@ -1,2 +1,5 @@
+# Build
 build
-deps
+
+# Development
+.vscode
