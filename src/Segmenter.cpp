@@ -2,7 +2,7 @@
 #include <unicode/brkiter.h>
 #include <unicode/normalizer2.h>
 
-#include "fasttokenizer/Segmenter.h"
+#include "fasttokenizer/segmenter.h"
 
 using namespace icu;
 
