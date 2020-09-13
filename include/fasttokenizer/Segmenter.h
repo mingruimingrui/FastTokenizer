@@ -16,17 +16,29 @@ class Segmenter {
         icu::UnicodeString inbuf;
         icu::UnicodeString outbuf;
 
-        // Segmentation tools
-        icu::RegexMatcher* word_matcher;
+        // Private objects and parameters
+        icu::RegexMatcher* non_whitespace_matcher;
         icu::RegexMatcher* other_letter_matcher;
+        icu::RegexMatcher* word_and_space_matcher;
+
+        icu::UnicodeSet* left_shift_chars;
+        icu::UnicodeSet* right_shift_chars;
+        icu::UnicodeSet* both_shift_chars;
+        icu::UnicodeSet* numeric_chars;
+        icu::UnicodeSet* whitespace_chars;
+
+        icu::UnicodeString dash_string = icu::UnicodeString("-");
+
         const icu::Normalizer2* nfc_normalizer;
         const icu::Normalizer2* nfkc_normalizer;
+
         icu::BreakIterator* break_iterator;
 
         // Private functions
         void break_and_append_to_outbuf(int32_t start, int32_t lim);
         void normalize_inbuf();
         void segment_inbuf();
+        void desegment_inbuf();
 
     public:
         Segmenter();
@@ -50,6 +62,7 @@ class Segmenter {
         void segment(const std::string& text, std::string& out) {
             inbuf = icu::UnicodeString::fromUTF8(icu::StringPiece(text));
             segment_inbuf();
+
             outbuf.toUTF8String(out);
         };
 
@@ -59,11 +72,28 @@ class Segmenter {
             return out;
         };
 
+        // Desegment
+        void desegment(const std::string& text, std::string& out) {
+            inbuf = icu::UnicodeString::fromUTF8(icu::StringPiece(text));
+            desegment_inbuf();
+
+            outbuf.toUTF8String(out);
+        };
+
+        std::string desegment(const std::string& text) {
+            std::string out;
+            desegment(text, out);
+            return out;
+        };
+
         // Normalize and segment
         void normalize_and_segment(const std::string& text, std::string& out) {
             inbuf = icu::UnicodeString::fromUTF8(icu::StringPiece(text));
             normalize_inbuf();
+
+            inbuf = outbuf;
             segment_inbuf();
+
             outbuf.toUTF8String(out);
         };
 

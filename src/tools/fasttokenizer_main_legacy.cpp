@@ -8,7 +8,6 @@
 #include "CLI/App.hpp"
 #include "CLI/Formatter.hpp"
 #include "CLI/Config.hpp"
-#include "ThreadPool.h"
 
 #include "fasttokenizer/segmenter.h"
 
@@ -19,9 +18,8 @@ using namespace TOKENIZER_NAMESPACE;
 typedef std::vector<std::string> vecstr;
 
 unsigned int CHUNKSIZE = 10000;
-// unsigned int MAXCHUNKS = 200;
 
-vecstr* segment_lines(vecstr* lines, unsigned int flag) {
+void segment_lines(vecstr* lines, unsigned int flag) {
     Segmenter segmenter = Segmenter();
     int num_lines = lines->size();
     std::string out;
@@ -53,74 +51,44 @@ vecstr* segment_lines(vecstr* lines, unsigned int flag) {
 
         (*lines)[i] = out;
     };
-    return lines;
 }
 
 unsigned long run(
     std::istream* input_stream,
-    int num_threads,
     unsigned int flag
 ) {
     unsigned long num_lines = 0;
 
-    ThreadPool pool(num_threads);
-    std::queue<std::future<vecstr*>> result_queue;
-    unsigned int result_queue_size = 0;
-    unsigned int MAXCHUNKS = num_threads * 8;
-
-    vecstr* ibuffer = new vecstr();
-    ibuffer->reserve(CHUNKSIZE);
-    unsigned int ibuffer_size = 0;
-
-    vecstr* obuffer;
+    vecstr buffer;
+    buffer.reserve(CHUNKSIZE);
+    unsigned int buffer_size = 0;
 
     std::string line;
+    std::string out;
     while (getline(*input_stream, line)) {
-        ibuffer->push_back(line);
-        ++ibuffer_size;
+        buffer.push_back(line);
+        ++buffer_size;
 
-        if (ibuffer_size >= CHUNKSIZE) {
-            result_queue.push(pool.enqueue(segment_lines, ibuffer, flag));
-            ++result_queue_size;
+        if (buffer_size >= CHUNKSIZE) {
+            segment_lines(&buffer, flag);
 
-            if (result_queue_size >= MAXCHUNKS) {
-                obuffer = result_queue.front().get();
-                result_queue.pop();
-                --result_queue_size;
+            for (std::string segmented_line: buffer) {
+                std::cout << segmented_line << "\n";
+                ++ num_lines;
+            };
+            std::cerr << "\r" << num_lines;
 
-                for (std::string segmented_line: *obuffer) {
-                    std::cout << segmented_line << "\n";
-                    ++num_lines;
-                };
-                std::cerr << "\r" << num_lines;
-
-                delete obuffer;
-            }
-
-            ibuffer = new vecstr();
-            ibuffer->reserve(CHUNKSIZE);
-            ibuffer_size = 0;
+            buffer.clear();
+            buffer_size = 0;
         };
     };
 
-    if (ibuffer_size > 0) {
-        result_queue.push(pool.enqueue(segment_lines, ibuffer, flag));
+    for (std::string segmented_line: buffer) {
+        std::cout << segmented_line << "\n";
+        ++ num_lines;
     };
-
-    while (!result_queue.empty()) {
-        obuffer = result_queue.front().get();
-        result_queue.pop();
-
-        for (std::string segmented_line: *obuffer) {
-            std::cout << segmented_line << "\n";
-            ++num_lines;
-        };
-        std::cerr << "\r" << num_lines;
-
-        delete obuffer;
-    };
-    std::cout << std::flush;
     std::cerr << "\r" << num_lines << " Done!" << std::endl;
+    std::cout << std::flush;
 
     return num_lines;
 }
@@ -152,15 +120,9 @@ int main(int argc, char** argv) {
         "!--no-segm", do_segm,
         "Do not perform segmentation.");
 
-    int num_threads = 4;
-    app.add_option(
-        "-j,--num-threads", num_threads,
-        "Number of threads to use");
-
     CLI11_PARSE(app, argc, argv);
 
     // Validate args
-    if (num_threads == 0) throw "num_threads cannot be 0";
     unsigned int flag = 0;
     if (do_norm) flag += 1;
     if (do_segm) flag += 2;
@@ -170,18 +132,17 @@ int main(int argc, char** argv) {
     std::cerr << "do_desegment: " << do_desegment << std::endl;
     std::cerr << "do_norm: " << do_norm << std::endl;
     std::cerr << "do_segm: " << do_segm << std::endl;
-    std::cerr << "num_threads: " << num_threads << std::endl;
     std::cerr << std::endl;
 
     // Run
     auto begin = std::chrono::steady_clock::now();
     unsigned long num_lines = 0;
     if (input == "-") {
-        num_lines = run(&std::cin, num_threads, flag);
+        num_lines = run(&std::cin, flag);
     } else {
         std::fstream input_stream;
         input_stream.open(input, std::fstream::in);
-        num_lines = run(&input_stream, num_threads, flag);
+        num_lines = run(&input_stream, flag);
     }
 
     // Print out some statistics
