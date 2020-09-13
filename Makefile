@@ -1,5 +1,9 @@
+.PHONY: \
+	build \
+	clean \
+	download-build-static-deps
 
-foo:
+build:
 	( \
 		mkdir -p build; \
 		cd build; \
