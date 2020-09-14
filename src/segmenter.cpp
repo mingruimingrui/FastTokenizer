@@ -171,7 +171,7 @@ void Segmenter::segment_inbuf(int32_t start, int32_t length) {
 };
 
 /**
- * Keep protected sequences unsegmented and apply break_iterator to others.
+ * Keep protected sequences unsegmented and apply segmentation to others.
  */
 void Segmenter::protect_and_segment_inbuf(int32_t start, int32_t length) {
     int32_t p0, p1;
