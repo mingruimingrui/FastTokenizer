@@ -58,8 +58,9 @@ vecstr* segment_lines(vecstr* lines, unsigned int flag) {
 
 unsigned long run(
     std::istream* input_stream,
+    unsigned int flag,
     int num_threads,
-    unsigned int flag
+    bool quiet
 ) {
     unsigned long num_lines = 0;
 
@@ -92,7 +93,7 @@ unsigned long run(
                     std::cout << segmented_line << "\n";
                     ++num_lines;
                 };
-                std::cerr << "\r" << num_lines;
+                if (!quiet) std::cerr << "\r" << num_lines;
 
                 delete obuffer;
             }
@@ -115,12 +116,12 @@ unsigned long run(
             std::cout << segmented_line << "\n";
             ++num_lines;
         };
-        std::cerr << "\r" << num_lines;
+        if (!quiet) std::cerr << "\r" << num_lines;
 
         delete obuffer;
     };
     std::cout << std::flush;
-    std::cerr << "\r" << num_lines << " Done!" << std::endl;
+    if (!quiet) std::cerr << "\r" << num_lines << " Done!" << std::endl;
 
     return num_lines;
 }
@@ -140,7 +141,7 @@ int main(int argc, char** argv) {
     bool do_desegment = false;
     app.add_flag(
         "-d,--desegment", do_desegment,
-        "Perform desegmentation");
+        "Perform desegmentation.");
 
     bool do_norm = true;
     app.add_flag(
@@ -155,7 +156,12 @@ int main(int argc, char** argv) {
     int num_threads = 4;
     app.add_option(
         "-j,--num-threads", num_threads,
-        "Number of threads to use");
+        "Number of threads to use.");
+
+    bool quiet = false;
+    app.add_option(
+        "-q,--quiet", quiet,
+        "Run in quiet mode.");
 
     CLI11_PARSE(app, argc, argv);
 
@@ -166,22 +172,24 @@ int main(int argc, char** argv) {
     if (do_segm) flag += 2;
     if (do_desegment) flag = 4;
 
-    std::cerr << "input: " << input << std::endl;
-    std::cerr << "do_desegment: " << do_desegment << std::endl;
-    std::cerr << "do_norm: " << do_norm << std::endl;
-    std::cerr << "do_segm: " << do_segm << std::endl;
-    std::cerr << "num_threads: " << num_threads << std::endl;
-    std::cerr << std::endl;
+    if (!quiet) {
+        std::cerr << "input: " << input << std::endl;
+        std::cerr << "do_desegment: " << do_desegment << std::endl;
+        std::cerr << "do_norm: " << do_norm << std::endl;
+        std::cerr << "do_segm: " << do_segm << std::endl;
+        std::cerr << "num_threads: " << num_threads << std::endl;
+        std::cerr << std::endl;
+    };
 
     // Run
     auto begin = std::chrono::steady_clock::now();
     unsigned long num_lines = 0;
     if (input == "-") {
-        num_lines = run(&std::cin, num_threads, flag);
+        num_lines = run(&std::cin, flag, num_threads, quiet);
     } else {
         std::fstream input_stream;
         input_stream.open(input, std::fstream::in);
-        num_lines = run(&input_stream, num_threads, flag);
+        num_lines = run(&input_stream, flag, num_threads, quiet);
     }
 
     // Print out some statistics
@@ -191,9 +199,12 @@ int main(int argc, char** argv) {
     long long millis_elapsed = time_taken.count();
     float sec_elapsed = std::max(millis_elapsed, (long long)(1)) / float(1000);
 
-    std::cerr << "Time taken: " << millis_elapsed << "[ms]" << std::endl;
-    std::cerr << "Num lines: " << num_lines << std::endl;
-    std::cerr << "Rate: " << num_lines / sec_elapsed << " lines/s" << std::endl;
+    if (!quiet) {
+        std::cerr << "Time taken: " << millis_elapsed << "[ms]" << std::endl;
+        std::cerr << "Num lines: " << num_lines << std::endl;
+        std::cerr << "Rate: " << num_lines / sec_elapsed
+            << " lines/s" << std::endl;
+    };
 
     return 0;
 }
