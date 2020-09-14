@@ -1,6 +1,6 @@
 """Type hint and docstrings for fasttokenizer."""
 
-import _fasttokenizer
+from fasttokenizer import _fasttokenizer
 
 __all__ = ['Segmenter']
 __version__ = _fasttokenizer.__version__
