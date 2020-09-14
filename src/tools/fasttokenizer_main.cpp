@@ -19,22 +19,31 @@ using namespace TOKENIZER_NAMESPACE;
 typedef std::vector<std::string> vecstr;
 
 unsigned int CHUNKSIZE = 10000;
-// unsigned int MAXCHUNKS = 200;
 
-vecstr* segment_lines(vecstr* lines, unsigned int flag) {
-    Segmenter segmenter = Segmenter();
+// CLI args
+typedef struct {
+    std::string input = "-";
+    bool protected_dash_split = false;
+    bool desegment = false;
+    bool norm_only = false;
+    bool segm_only = false;
+    unsigned int flag = -1;
+    int num_threads = 4;
+    bool quiet = false;
+} Args;
+
+Args args;
+
+vecstr* segment_lines(vecstr* lines) {
+    Segmenter segmenter = Segmenter(args.protected_dash_split);
     int num_lines = lines->size();
     std::string out;
     for (int i=0; i<num_lines; ++i) {
         out.clear();
 
-        switch (flag) {
-        case 4:
-            segmenter.desegment(lines->at(i), out);
-            break;
-
+        switch (args.flag) {
         case 3:
-            segmenter.normalize_and_segment(lines->at(i), out);
+            segmenter.desegment(lines->at(i), out);
             break;
 
         case 2:
@@ -46,8 +55,7 @@ vecstr* segment_lines(vecstr* lines, unsigned int flag) {
             break;
 
         default:
-            // Case 0
-            out = lines->at(i);
+            segmenter.normalize_and_segment(lines->at(i), out);
             break;
         }
 
@@ -56,18 +64,13 @@ vecstr* segment_lines(vecstr* lines, unsigned int flag) {
     return lines;
 }
 
-unsigned long run(
-    std::istream* input_stream,
-    unsigned int flag,
-    int num_threads,
-    bool quiet
-) {
+unsigned long run(std::istream* input_stream) {
     unsigned long num_lines = 0;
 
-    ThreadPool pool(num_threads);
+    ThreadPool pool(args.num_threads);
     std::queue<std::future<vecstr*>> result_queue;
     unsigned int result_queue_size = 0;
-    unsigned int MAXCHUNKS = num_threads * 8;
+    unsigned int max_chunks = args.num_threads * 8;
 
     vecstr* ibuffer = new vecstr();
     ibuffer->reserve(CHUNKSIZE);
@@ -81,10 +84,10 @@ unsigned long run(
         ++ibuffer_size;
 
         if (ibuffer_size >= CHUNKSIZE) {
-            result_queue.push(pool.enqueue(segment_lines, ibuffer, flag));
+            result_queue.push(pool.enqueue(segment_lines, ibuffer));
             ++result_queue_size;
 
-            if (result_queue_size >= MAXCHUNKS) {
+            if (result_queue_size >= max_chunks) {
                 obuffer = result_queue.front().get();
                 result_queue.pop();
                 --result_queue_size;
@@ -93,7 +96,7 @@ unsigned long run(
                     std::cout << segmented_line << "\n";
                     ++num_lines;
                 };
-                if (!quiet) std::cerr << "\r" << num_lines;
+                if (!args.quiet) std::cerr << "\r" << num_lines;
 
                 delete obuffer;
             }
@@ -105,7 +108,7 @@ unsigned long run(
     };
 
     if (ibuffer_size > 0) {
-        result_queue.push(pool.enqueue(segment_lines, ibuffer, flag));
+        result_queue.push(pool.enqueue(segment_lines, ibuffer));
     };
 
     while (!result_queue.empty()) {
@@ -116,12 +119,12 @@ unsigned long run(
             std::cout << segmented_line << "\n";
             ++num_lines;
         };
-        if (!quiet) std::cerr << "\r" << num_lines;
+        if (!args.quiet) std::cerr << "\r" << num_lines;
 
         delete obuffer;
     };
     std::cout << std::flush;
-    if (!quiet) std::cerr << "\r" << num_lines << " Done!" << std::endl;
+    if (!args.quiet) std::cerr << "\r" << num_lines << " Done!" << std::endl;
 
     return num_lines;
 }
@@ -132,64 +135,60 @@ int main(int argc, char** argv) {
 
     // Parse args
     CLI::App app{"Fast Tokenizer CLI"};
-
-    std::string input = "-";
     app.add_option(
-        "-i,--input", input,
+        "-i,--input", args.input,
         "Input stream, defaults to stdin.");
-
-    bool do_desegment = false;
     app.add_flag(
-        "-d,--desegment", do_desegment,
-        "Perform desegmentation.");
-
-    bool do_norm = true;
+        "-p,--protected-dash-split", args.protected_dash_split,
+        "Perform protected dash split.");
     app.add_flag(
-        "!--no-norm", do_norm,
+        "-n,--norm-only", args.norm_only,
         "Do not perform normalization.");
-
-    bool do_segm = true;
     app.add_flag(
-        "!--no-segm", do_segm,
+        "-s,--segm-only", args.segm_only,
         "Do not perform segmentation.");
-
-    int num_threads = 4;
-    app.add_option(
-        "-j,--num-threads", num_threads,
-        "Number of threads to use.");
-
-    bool quiet = false;
     app.add_flag(
-        "-q,--quiet", quiet,
+        "-d,--desegment", args.desegment,
+        "Perform desegmentation.");
+    app.add_option(
+        "-j,--num-threads", args.num_threads,
+        "Number of threads to use.");
+    app.add_flag(
+        "-q,--quiet", args.quiet,
         "Run in quiet mode.");
 
     CLI11_PARSE(app, argc, argv);
 
     // Validate args
-    if (num_threads == 0) throw "num_threads cannot be 0";
-    unsigned int flag = 0;
-    if (do_norm) flag += 1;
-    if (do_segm) flag += 2;
-    if (do_desegment) flag = 4;
+    if (args.num_threads == 0) throw "num_threads cannot be 0";
+    if (args.norm_only && args.segm_only)
+        throw "Cannot have both norm_only and segm_only";
 
-    if (!quiet) {
-        std::cerr << "input: " << input << std::endl;
-        std::cerr << "do_desegment: " << do_desegment << std::endl;
-        std::cerr << "do_norm: " << do_norm << std::endl;
-        std::cerr << "do_segm: " << do_segm << std::endl;
-        std::cerr << "num_threads: " << num_threads << std::endl;
+    args.flag = 0;
+    if (args.norm_only) args.flag = 1;
+    if (args.segm_only) args.flag = 2;
+    if (args.desegment) args.flag = 3;
+
+    if (!args.quiet) {
+        std::cerr << "input: " << args.input << std::endl;
+        std::cerr << "protected_dash_split: "
+            << args.protected_dash_split << std::endl;
+        std::cerr << "norm_only: " << args.norm_only << std::endl;
+        std::cerr << "segm_only: " << args.segm_only << std::endl;
+        std::cerr << "desegment: " << args.desegment << std::endl;
+        std::cerr << "num_threads: " << args.num_threads << std::endl;
         std::cerr << std::endl;
     };
 
     // Run
     auto begin = std::chrono::steady_clock::now();
     unsigned long num_lines = 0;
-    if (input == "-") {
-        num_lines = run(&std::cin, flag, num_threads, quiet);
+    if (args.input == "-") {
+        num_lines = run(&std::cin);
     } else {
         std::fstream input_stream;
-        input_stream.open(input, std::fstream::in);
-        num_lines = run(&input_stream, flag, num_threads, quiet);
+        input_stream.open(args.input, std::fstream::in);
+        num_lines = run(&input_stream);
     }
 
     // Print out some statistics
@@ -199,7 +198,7 @@ int main(int argc, char** argv) {
     long long millis_elapsed = time_taken.count();
     float sec_elapsed = std::max(millis_elapsed, (long long)(1)) / float(1000);
 
-    if (!quiet) {
+    if (!args.quiet) {
         std::cerr << "Time taken: " << millis_elapsed << "[ms]" << std::endl;
         std::cerr << "Num lines: " << num_lines << std::endl;
         std::cerr << "Rate: " << num_lines / sec_elapsed

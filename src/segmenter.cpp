@@ -11,9 +11,10 @@ using namespace icu;
 namespace TOKENIZER_NAMESPACE {
 #endif
 
-Segmenter::Segmenter()
-    : icu_status(U_ZERO_ERROR)
+Segmenter::Segmenter(bool protected_dash_split)
+    : protected_dash_split(protected_dash_split)
 
+    , icu_status(U_ZERO_ERROR)
     , non_whitespace_matcher(new RegexMatcher("\\S+", 0, icu_status))
     , other_letter_matcher(new RegexMatcher(
         "(\\p{Lo}[\\p{Lm}\\p{Mn}\\p{Sk}]*)+", 0, icu_status))
@@ -62,7 +63,7 @@ Segmenter::~Segmenter() {
 Segmenter* Segmenter::clone() {
     // Note this function is just a dummy for now.
     // Will be used when segmenter takes states for skipping patterns.
-    return new Segmenter();
+    return new Segmenter(protected_dash_split);
 };
 
 /**
@@ -117,7 +118,7 @@ void Segmenter::break_inbuf(int32_t start, int32_t length) {
         if (whitespace_chars->contains(usegment[0])) {
             // pass
 
-        } else if (usegment == dash_string) {
+        } else if (protected_dash_split && (usegment == dash_string)) {
             char16_t prev_char = inbuf[start + p0 - 1];
             char16_t next_char = inbuf[start + p1];
 

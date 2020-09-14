@@ -11,13 +11,15 @@ namespace TOKENIZER_NAMESPACE {
 
 class Segmenter {
     private:
+        bool protected_dash_split;
+
         // Placeholder variables
         UErrorCode icu_status;
         icu::UnicodeString inbuf;
         icu::UnicodeString outbuf;
         icu::UnicodeString tempbuf;  // Reserved for normalize_inbuf
 
-        // Private objects and parameters
+        // Private ICU objects
         icu::RegexMatcher* non_whitespace_matcher;
         icu::RegexMatcher* other_letter_matcher;
         icu::RegexMatcher* protect_matcher;
@@ -44,7 +46,7 @@ class Segmenter {
         void desegment_inbuf(int32_t start, int32_t length);
 
     public:
-        Segmenter();
+        Segmenter(bool protected_dash_split=false);
         ~Segmenter();
         Segmenter* clone();
 
