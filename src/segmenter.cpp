@@ -83,12 +83,13 @@ void Segmenter::normalize_inbuf(int32_t start, int32_t length) {
     word_and_space_matcher->reset(tempbuf);
     p0 = 0;
     while (word_and_space_matcher->find()) {
+        // Non words can remain as NFC
         p1 = word_and_space_matcher->start(icu_status);
         outbuf.append(tempbuf.tempSubString(p0, p1 - p0));
         p0 = p1;
 
+        // Words should be normalized as NFKC
         p1 = word_and_space_matcher->end(icu_status);
-        tempbuf.tempSubString(p0, p1 - p0);
         nfkc_normalizer->normalizeSecondAndAppend(
             outbuf,
             tempbuf.tempSubString(p0, p1 - p0),
@@ -96,6 +97,7 @@ void Segmenter::normalize_inbuf(int32_t start, int32_t length) {
         );
         p0 = p1;
     };
+    // Non words can remain as NFC
     outbuf.append(tempbuf.tempSubString(p0, tempbuf.length() - p0));
 };
 
