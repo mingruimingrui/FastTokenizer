@@ -17,6 +17,7 @@ Segmenter::Segmenter()
     , non_whitespace_matcher(new RegexMatcher("\\S+", 0, icu_status))
     , other_letter_matcher(new RegexMatcher(
         "(\\p{Lo}[\\p{Lm}\\p{Mn}\\p{Sk}]*)+", 0, icu_status))
+    , protect_matcher(new RegexMatcher("\u001F.*\u001F", 0, icu_status))
     , word_and_space_matcher(new RegexMatcher("[\\w\\s]+", 0, icu_status))
 
     , left_shift_chars(new UnicodeSet(
@@ -41,11 +42,12 @@ Segmenter::Segmenter()
     both_shift_chars->freeze();
     numeric_chars->freeze();
     whitespace_chars->freeze();
-}
+};
 
 Segmenter::~Segmenter() {
     delete non_whitespace_matcher;
     delete other_letter_matcher;
+    delete protect_matcher;
     delete word_and_space_matcher;
 
     delete left_shift_chars;
@@ -55,20 +57,54 @@ Segmenter::~Segmenter() {
     delete whitespace_chars;
 
     delete break_iterator;
-}
+};
 
 Segmenter* Segmenter::clone() {
     // Note this function is just a dummy for now.
     // Will be used when segmenter takes states for skipping patterns.
     return new Segmenter();
-}
+};
+
+/**
+ * Normalize input buffer using NFKC for word characters and NFC for others.
+ */
+void Segmenter::normalize_inbuf(int32_t start, int32_t length) {
+    int32_t p0, p1;
+    icu_status = U_ZERO_ERROR;
+
+    // Normalize with NFC
+    nfc_normalizer->normalize(
+        inbuf.tempSubString(start, length),
+        tempbuf,
+        icu_status
+    );
+
+    // Normalize words with NFKC
+    word_and_space_matcher->reset(tempbuf);
+    p0 = 0;
+    while (word_and_space_matcher->find()) {
+        p1 = word_and_space_matcher->start(icu_status);
+        outbuf.append(tempbuf.tempSubString(p0, p1 - p0));
+        p0 = p1;
+
+        p1 = word_and_space_matcher->end(icu_status);
+        tempbuf.tempSubString(p0, p1 - p0);
+        nfkc_normalizer->normalizeSecondAndAppend(
+            outbuf,
+            tempbuf.tempSubString(p0, p1 - p0),
+            icu_status
+        );
+        p0 = p1;
+    };
+    outbuf.append(tempbuf.tempSubString(p0, tempbuf.length() - p0));
+};
 
 /**
  * Method to apply break_iterator on substring.
  */
-void Segmenter::break_and_append_to_outbuf(int32_t start, int32_t lim) {
+void Segmenter::break_inbuf(int32_t start, int32_t length) {
     int32_t p0, p1;
-    break_iterator->setText(inbuf.tempSubString(start, lim));
+    break_iterator->setText(inbuf.tempSubString(start, length));
 
     p0 = break_iterator->first();
     p1 = break_iterator->next();
@@ -104,85 +140,81 @@ void Segmenter::break_and_append_to_outbuf(int32_t start, int32_t lim) {
         p0 = p1;
         p1 = break_iterator->next();
     };
-}
-
-/**
- * Normalize input buffer using NFKC for word characters and NFC for others.
- */
-void Segmenter::normalize_inbuf() {
-    int32_t p0, p1;
-    icu_status = U_ZERO_ERROR;
-    outbuf.remove();
-
-    // Normalize with NFC
-    nfc_normalizer->normalize(inbuf, outbuf, icu_status);
-    inbuf = outbuf;
-
-    // Normalize words with NFKC
-    outbuf.remove();
-    word_and_space_matcher->reset(inbuf);
-    p0 = 0;
-    while (word_and_space_matcher->find()) {
-        p1 = word_and_space_matcher->start(icu_status);
-        outbuf.append(inbuf.tempSubString(p0, p1 - p0));
-        p0 = p1;
-
-        p1 = word_and_space_matcher->end(icu_status);
-        inbuf.tempSubString(p0, p1 - p0);
-        nfkc_normalizer->normalizeSecondAndAppend(
-            outbuf,
-            inbuf.tempSubString(p0, p1 - p0),
-            icu_status
-        );
-        p0 = p1;
-    };
-    outbuf.append(inbuf.tempSubString(p0, inbuf.length() - p0));
 };
 
 /**
  * Keep Lo substrings unsegmented and apply break_iterator to others.
  */
-void Segmenter::segment_inbuf() {
+void Segmenter::segment_inbuf(int32_t start, int32_t length) {
     int32_t p0, p1;
     icu_status = U_ZERO_ERROR;
-    outbuf.remove();
 
     // Segment Lo and apply break_iterator on reamining.
-    other_letter_matcher->reset(inbuf);
+    other_letter_matcher->reset(inbuf.tempSubString(start, length));
     p0 = 0;
     while (other_letter_matcher->find()) {
-        // Apply ICU WordBreakITerator on non-Lo substrings
+        // Apply ICU WordBreakIterator on non-Lo substrings
         p1 = other_letter_matcher->start(icu_status);
-        break_and_append_to_outbuf(p0, p1 - p0);
+        break_inbuf(start + p0, p1 - p0);
         p0 = p1;
 
         // Do not break Lo
         p1 = other_letter_matcher->end(icu_status);
-        outbuf.append(inbuf.tempSubString(p0, p1 - p0));
+        outbuf.append(inbuf.tempSubString(start + p0, p1 - p0));
         outbuf.append(' ');
         p0 = p1;
     };
-    // Apply ICU WordBreakITerator on non-Lo substrings
-    break_and_append_to_outbuf(p0, inbuf.length() - p0);
-    outbuf.trim();
+    // Apply ICU WordBreakIterator on non-Lo substrings
+    break_inbuf(start + p0, length - p0);
 };
 
-void Segmenter::desegment_inbuf() {
+/**
+ * Keep protected sequences unsegmented and apply break_iterator to others.
+ */
+void Segmenter::protect_and_segment_inbuf(int32_t start, int32_t length) {
     int32_t p0, p1;
     icu_status = U_ZERO_ERROR;
-    outbuf.remove();
+
+    // Segment by unit separators
+    protect_matcher->reset(inbuf.tempSubString(start, length));
+    p0 = 0;
+    while (protect_matcher->find()) {
+        // Apply segmentation to un-protected substring
+        p1 = protect_matcher->start(icu_status);
+        segment_inbuf(start + p0, p1 - p0);
+        p0 = p1;
+
+        // Protect substring
+        p1 = protect_matcher->end(icu_status);
+        outbuf.append(inbuf.tempSubString(start + p0 + 1, p1 - p0 - 1));
+        outbuf.append(' ');
+        p0 = p1;
+    };
+    // Apply segmentation to un-protected substring
+    segment_inbuf(start + p0, length - p0);
+};
+
+/**
+ * Custom desegmentation script for english.
+ * User would likely want to use something more sophisticated like moses
+ * or a custom script for desegmentation.
+ */
+void Segmenter::desegment_inbuf(int32_t start, int32_t length) {
+    int32_t p0, p1;
+    icu_status = U_ZERO_ERROR;
+
     bool in_apos = false;
     bool in_quote = false;
     bool prepend_space = true;
     UnicodeString prev_usegment;
 
-    non_whitespace_matcher->reset(inbuf);
+    non_whitespace_matcher->reset(inbuf.tempSubString(start, length));
     while (non_whitespace_matcher->find()) {
         p0 = non_whitespace_matcher->start(icu_status);
         p1 = non_whitespace_matcher->end(icu_status);
 
         // Get word
-        UnicodeString usegment = inbuf.tempSubString(p0, p1 - p0);
+        UnicodeString usegment = inbuf.tempSubString(start + p0, p1 - p0);
 
         if (right_shift_chars->contains(usegment)) {
             if (prepend_space) outbuf.append(' ');
@@ -250,8 +282,6 @@ void Segmenter::desegment_inbuf() {
 
         prev_usegment = usegment;
     };
-
-    outbuf.trim();
 };
 
 #ifdef TOKENIZER_NAMESPACE
