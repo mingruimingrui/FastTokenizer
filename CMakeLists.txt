@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.2)
 
 file(STRINGS "VERSION" FASTTOKENIZER_VERSION)
 project(fasttokenizer VERSION ${FASTTOKENIZER_VERSION} LANGUAGES CXX)
-add_definitions(-DVERSION_INFO="${FASTTOKENIZER_VERSION}")
+add_definitions(-DTOKENIZER_VERSION_INFO="${FASTTOKENIZER_VERSION}")
 add_definitions(-DTOKENIZER_NAMESPACE=fasttokenizer)
 
 
@@ -110,12 +110,11 @@ add_library(fasttokenizer-dev
 
 ######## CLI
 if(BUILD_CLI)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/tools)
+endif()
 
-add_executable(fasttokenizer
-	${CMAKE_CURRENT_SOURCE_DIR}/src/tools/fasttokenizer_main.cpp
-)
-target_link_libraries(fasttokenizer PRIVATE
-	fasttokenizer-dev ${LINK_LIBRARIES}
-)
 
-endif()  # BUILD_CLI
+######## CLI
+if (BUILD_PYTHON)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/pybind11-2.5.0)
+endif()

@@ -78,22 +78,6 @@ class Segmenter {
             return out;
         };
 
-        // Desegment
-        void desegment(const std::string& text, std::string& out) {
-            inbuf = icu::UnicodeString::fromUTF8(icu::StringPiece(text));
-            outbuf.remove();
-            desegment_inbuf(0, inbuf.length());
-            outbuf.trim();
-
-            outbuf.toUTF8String(out);
-        };
-
-        std::string desegment(const std::string& text) {
-            std::string out;
-            desegment(text, out);
-            return out;
-        };
-
         // Normalize and segment
         void normalize_and_segment(const std::string& text, std::string& out) {
             inbuf = icu::UnicodeString::fromUTF8(icu::StringPiece(text));
@@ -111,6 +95,22 @@ class Segmenter {
         std::string normalize_and_segment(const std::string& text) {
             std::string out;
             normalize_and_segment(text, out);
+            return out;
+        };
+
+        // Desegment
+        void desegment(const std::string& text, std::string& out) {
+            inbuf = icu::UnicodeString::fromUTF8(icu::StringPiece(text));
+            outbuf.remove();
+            desegment_inbuf(0, inbuf.length());
+            outbuf.trim();
+
+            outbuf.toUTF8String(out);
+        };
+
+        std::string desegment(const std::string& text) {
+            std::string out;
+            desegment(text, out);
             return out;
         };
 };
