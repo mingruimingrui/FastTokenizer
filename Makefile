@@ -5,16 +5,16 @@
 
 build:
 	( \
-		mkdir -p build; \
-		cd build; \
-		cmake .. \
+		mkdir -p build/release; \
+		cd build/release; \
+		cmake ../.. \
 			-DBUILD_SHARED_LIBS:BOOL=OFF \
 			-DCMAKE_BUILD_TYPE=Release; \
 		make -j; \
 	)
 
 clean:
-	rm -rf build
+	rm -rf build bindings/python/fasttokenizer/*.so
 
 download-build-static-deps:
 	@mkdir -p deps
