@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
         "Number of threads to use.");
 
     bool quiet = false;
-    app.add_option(
+    app.add_flag(
         "-q,--quiet", quiet,
         "Run in quiet mode.");
 
