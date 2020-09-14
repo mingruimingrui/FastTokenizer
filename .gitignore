@@ -1,5 +1,12 @@
 # Build
 build
+*.a
+*.dylib
+*.so
+
+# Python
+__pycache__
+*.pyc
 
 # Development
 .vscode
