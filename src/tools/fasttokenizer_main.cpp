@@ -160,7 +160,7 @@ int main(int argc, char** argv) {
     CLI11_PARSE(app, argc, argv);
 
     // Validate args
-    if (args.num_threads == 0) throw "num_threads cannot be 0";
+    if (args.num_threads <= 0) throw "num_threads must be a positive value";
     if (args.norm_only && args.segm_only)
         throw "Cannot have both norm_only and segm_only";
 
