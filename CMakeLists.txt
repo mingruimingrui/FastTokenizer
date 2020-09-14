@@ -116,5 +116,6 @@ endif()
 
 ######## CLI
 if (BUILD_PYTHON)
-	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/pybind11-2.5.0)
+	add_subdirectory(deps/pybind11-2.5.0)
+	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/python)
 endif()
