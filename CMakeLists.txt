@@ -19,12 +19,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(IS_OSX OFF)
-if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-	set(IS_OSX ON)
-endif()
-
-if(IS_OSX)
+if(APPLE)
 	set(CMAKE_MACOSX_RPATH 1)
 	find_library(COREFOUNDATION_LIBRARY CoreFoundation)
 	find_library(FOUNDATION_LIBRARY Foundation)
@@ -39,7 +34,7 @@ if(NOT BUILD_SHARED_LIBS)
 	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 	set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 else()
-	if(IS_OSX)
+	if(APPLE)
 		set(CMAKE_FIND_LIBRARY_SUFFIXES ".dylib")
 	else()
 		set(CMAKE_FIND_LIBRARY_SUFFIXES ".so")
@@ -47,24 +42,17 @@ else()
 endif()
 
 ######## Compiler flags
-add_definitions(-std=c++11 -pthread)
+add_definitions(-pthread)
 
-if("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-  add_definitions(-Wall -Wextra)
-  if(CMAKE_BUILD_TYPE MATCHES Debug)
-		add_definitions(-O0 -g3)
-	else()
-		add_definitions(-O3)
-  endif()
-elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU")
-  add_definitions(-Wall -Wextra)
+if(MSVC)
+	add_definitions(/W4 /D "_CRT_SECURE_NO_WARNINGS")
+else()
+	add_definitions(-Wall -Wextra)
 	if(CMAKE_BUILD_TYPE MATCHES Debug)
 		add_definitions(-O0 -g3)
 	else()
 		add_definitions(-O3)
-  endif()
-elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-  add_definitions(/W4 /D "_CRT_SECURE_NO_WARNINGS")
+	endif()
 endif()
 
 
@@ -89,6 +77,7 @@ endif(BUILD_SHARED_LIBS)
 if(NOT ICU_FOUND)
 	message(FATAL_ERROR "ICU is required")
 endif()
+
 set(INCLUDE_DIRECTORIES
 	${ICU_INCLUDE_DIRS}
 	deps/CLI11-1.9.1/include
@@ -114,7 +103,7 @@ if(BUILD_CLI)
 endif()
 
 
-######## CLI
+######## Python
 if (BUILD_PYTHON)
 	add_subdirectory(deps/pybind11-2.5.0)
 	add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/python)
