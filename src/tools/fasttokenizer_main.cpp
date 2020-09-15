@@ -27,40 +27,42 @@ typedef struct {
     bool desegment = false;
     bool norm_only = false;
     bool segm_only = false;
-    unsigned int flag = -1;
     int num_threads = 4;
     bool quiet = false;
 } Args;
 
 Args args;
+unsigned int flag = -1;
+Segmenter* segmenter;
 
 vecstr* segment_lines(vecstr* lines) {
-    Segmenter segmenter = Segmenter(args.protected_dash_split);
+    Segmenter* segmenter_copy = segmenter->clone();
     int num_lines = lines->size();
     std::string out;
     for (int i=0; i<num_lines; ++i) {
         out.clear();
 
-        switch (args.flag) {
+        switch (flag) {
         case 3:
-            segmenter.desegment(lines->at(i), out);
+            segmenter_copy->desegment(lines->at(i), out);
             break;
 
         case 2:
-            segmenter.segment(lines->at(i), out);
+            segmenter_copy->segment(lines->at(i), out);
             break;
 
         case 1:
-            segmenter.normalize(lines->at(i), out);
+            segmenter_copy->normalize(lines->at(i), out);
             break;
 
         default:
-            segmenter.normalize_and_segment(lines->at(i), out);
+            segmenter_copy->normalize_and_segment(lines->at(i), out);
             break;
         }
 
         (*lines)[i] = out;
     };
+    delete segmenter_copy;
     return lines;
 }
 
@@ -160,14 +162,15 @@ int main(int argc, char** argv) {
     CLI11_PARSE(app, argc, argv);
 
     // Validate args
-    if (args.num_threads <= 0) throw "num_threads must be a positive value";
+    if (args.num_threads <= 0)
+        throw std::runtime_error("num_threads must be a positive value");
     if (args.norm_only && args.segm_only)
-        throw "Cannot have both norm_only and segm_only";
+        throw std::runtime_error("Cannot have both norm_only and segm_only");
 
-    args.flag = 0;
-    if (args.norm_only) args.flag = 1;
-    if (args.segm_only) args.flag = 2;
-    if (args.desegment) args.flag = 3;
+    if (args.norm_only) flag = 1;
+    else if (args.segm_only) flag = 2;
+    else if (args.desegment) flag = 3;
+    else flag = 0;
 
     if (!args.quiet) {
         std::cerr << "input: " << args.input << std::endl;
@@ -179,6 +182,8 @@ int main(int argc, char** argv) {
         std::cerr << "num_threads: " << args.num_threads << std::endl;
         std::cerr << std::endl;
     };
+
+    segmenter = new Segmenter(args.protected_dash_split);
 
     // Run
     auto begin = std::chrono::steady_clock::now();
@@ -205,5 +210,6 @@ int main(int argc, char** argv) {
             << " lines/s" << std::endl;
     };
 
+    delete segmenter;
     return 0;
 }
