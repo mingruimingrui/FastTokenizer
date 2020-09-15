@@ -10,7 +10,7 @@ build:
 		cmake ../.. \
 			-DBUILD_SHARED_LIBS:BOOL=OFF \
 			-DCMAKE_BUILD_TYPE=Release; \
-		make -j; \
+		make -j8; \
 	)
 
 clean:
