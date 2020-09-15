@@ -11,6 +11,14 @@ using namespace icu;
 namespace TOKENIZER_NAMESPACE {
 #endif
 
+static const UnicodeString u_dash(icu::UnicodeString("-"));
+static const UnicodeString u_apos(icu::UnicodeString('\''));
+static const UnicodeString u_quote(icu::UnicodeString('\"'));
+
+static const UnicodeString u_bdash(icu::UnicodeString("@-@"));
+static const UnicodeString u_ldash(icu::UnicodeString("@-"));
+static const UnicodeString u_rdash(icu::UnicodeString("-@"));
+
 Segmenter::Segmenter(bool protected_dash_split)
     : protected_dash_split(protected_dash_split)
 
@@ -118,7 +126,7 @@ void Segmenter::break_inbuf(int32_t start, int32_t length) {
         if (whitespace_chars->contains(usegment[0])) {
             // pass
 
-        } else if (protected_dash_split && (usegment == dash_string)) {
+        } else if (protected_dash_split && (usegment == u_dash)) {
             char16_t prev_char = inbuf[start + p0 - 1];
             char16_t next_char = inbuf[start + p1];
 
@@ -232,20 +240,20 @@ void Segmenter::desegment_inbuf(int32_t start, int32_t length) {
             outbuf.append(usegment);
             prepend_space = false;
 
-        } else if (usegment == "@-@") {
+        } else if (usegment == u_bdash) {
             outbuf.append('-');
             prepend_space = false;
 
-        } else if (usegment == "-@") {
+        } else if (usegment == u_ldash) {
+            outbuf.append('-');
+            prepend_space = true;
+
+        } else if (usegment == u_rdash) {
             if (prepend_space) outbuf.append(' ');
             outbuf.append('-');
             prepend_space = false;
 
-        } else if (usegment == "@-") {
-            outbuf.append('-');
-            prepend_space = true;
-
-        } else if (usegment == '\'') {
+        } else if (usegment == u_apos) {
             if (prev_usegment.endsWith('s')) {
                 outbuf.append(usegment);
                 prepend_space = true;
@@ -260,7 +268,7 @@ void Segmenter::desegment_inbuf(int32_t start, int32_t length) {
                 in_apos = true;
             };
 
-        } else if (usegment == '\"') {
+        } else if (usegment == u_quote) {
             char16_t prev_last_char =
                 prev_usegment[prev_usegment.length() - 1];
             if (numeric_chars->contains(prev_last_char)) {

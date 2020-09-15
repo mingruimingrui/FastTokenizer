@@ -31,8 +31,6 @@ class Segmenter {
         icu::UnicodeSet* numeric_chars;
         icu::UnicodeSet* whitespace_chars;
 
-        icu::UnicodeString dash_string = icu::UnicodeString("-");
-
         const icu::Normalizer2* nfc_normalizer;
         const icu::Normalizer2* nfkc_normalizer;
 
