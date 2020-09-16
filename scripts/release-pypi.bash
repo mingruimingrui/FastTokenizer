@@ -22,6 +22,9 @@ bash ${MINICONDA_FILENAME} -b -f -p $HOME/miniconda3
 export PATH=$HOME/miniconda3/bin:$PATH
 eval "$(conda shell.bash hook)"
 
+# Go to root directory of package
+cd $(dirname $(realpath $0))/..
+
 # Download and build static deps
 make download-build-static-deps
 

@@ -17,7 +17,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         docker run --rm -v "${PWD}:/opt/FastTokenizer" ubuntu:16.04 \
-          "cd /opt/FastTokenizer; /bin/bash /opt/FastTokenizer/scripts/release-pypi.bash"
+          "/bin/bash /opt/FastTokenizer/scripts/release-pypi.bash"
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
