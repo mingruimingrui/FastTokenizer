@@ -19,7 +19,7 @@ static const UnicodeString u_bdash(icu::UnicodeString("@-@"));
 static const UnicodeString u_ldash(icu::UnicodeString("@-"));
 static const UnicodeString u_rdash(icu::UnicodeString("-@"));
 
-Segmenter::Segmenter(bool protected_dash_split)
+Segmenter::Segmenter(const bool protected_dash_split)
     : protected_dash_split(protected_dash_split)
 
     , icu_status(U_ZERO_ERROR)

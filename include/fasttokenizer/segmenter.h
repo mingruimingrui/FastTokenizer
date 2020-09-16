@@ -44,7 +44,7 @@ class Segmenter {
         void desegment_inbuf(int32_t start, int32_t length);
 
     public:
-        Segmenter(bool protected_dash_split=false);
+        Segmenter(const bool protected_dash_split=false);
         ~Segmenter();
         Segmenter* clone();
 
