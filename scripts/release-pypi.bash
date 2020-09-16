@@ -9,6 +9,10 @@ else
   MINICONDA_FILENAME=Miniconda3-latest-Linux-x86_64.sh
   EXTRA_SETUP_ARGS="--plat-name manylinux1_x86_64"
 
+  # A little bit of engineering debt here, since we run from inside
+  # a docker image
+  cd /opt/FastTokenizer
+
   export DEBIAN_FRONTEND=noninteractive
   apt update
   apt upgrade -y
@@ -21,9 +25,6 @@ curl -L -o $MINICONDA_FILENAME \
 bash ${MINICONDA_FILENAME} -b -f -p $HOME/miniconda3
 export PATH=$HOME/miniconda3/bin:$PATH
 eval "$(conda shell.bash hook)"
-
-# Go to root directory of package
-cd $(dirname $(realpath $0))/..
 
 # Download and build static deps
 make download-build-static-deps
