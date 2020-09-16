@@ -7,7 +7,16 @@ __version__ = _fasttokenizer.__version__
 
 
 class Segmenter(_fasttokenizer.Segmenter):
-    """A universal text segmenter that works for all languages."""
+    """A universal text segmenter that works for all languages.
+
+    Args:
+        protected_dash_split (bool, optional): Protect dashes by annotating
+            if there should be a space preceding or following it.
+            Defaults to False.
+    """
+
+    def __init__(self, protected_dash_split=False):
+        super().__init__(protected_dash_split)
 
     def normalize(self, text: str) -> str:
         """Normalize an input text.
