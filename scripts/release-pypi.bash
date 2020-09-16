@@ -22,8 +22,6 @@ bash ${MINICONDA_FILENAME} -b -f -p $HOME/miniconda3
 export PATH=$HOME/miniconda3/bin:$PATH
 eval "$(conda shell.bash hook)"
 
-cd /opt/FastTokenizer
-
 # Download and build static deps
 make download-build-static-deps
 
