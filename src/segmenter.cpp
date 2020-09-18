@@ -26,7 +26,7 @@ Segmenter::Segmenter(const bool protected_dash_split)
     , non_whitespace_matcher(new RegexMatcher("\\S+", 0, icu_status))
     , other_letter_matcher(new RegexMatcher(
         "(\\p{Lo}[\\p{Lm}\\p{Mn}\\p{Sk}]*)+", 0, icu_status))
-    , protect_matcher(new RegexMatcher("\u001F.*\u001F", 0, icu_status))
+    , protect_matcher(new RegexMatcher("\u001F[^\u001F]*\u001F", 0, icu_status))
     , word_and_space_matcher(new RegexMatcher("[\\w\\s]+", 0, icu_status))
 
     , left_shift_chars(new UnicodeSet(
