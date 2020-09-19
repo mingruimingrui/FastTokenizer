@@ -5,7 +5,9 @@ build
 *.so
 
 # Python
-__pycache__
+__pycache__/
+*.egg-info/
+dist/
 *.pyc
 
 # Development
