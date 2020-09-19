@@ -38,55 +38,60 @@ Segmenter* segmenter;
 vecstr* segment_lines(vecstr* lines) {
     Segmenter* segmenter_copy = segmenter->clone();
     int num_lines = lines->size();
-    std::string out;
+
+    std::string input_text;
+    std::string output_text;
     for (int i=0; i<num_lines; ++i) {
-        out.clear();
+        input_text = lines->at(i);
+        output_text.clear();
 
         switch (flag) {
         case 3:
-            segmenter_copy->desegment(lines->at(i), out);
+            segmenter_copy->desegment(input_text, output_text);
             break;
 
         case 2:
-            segmenter_copy->segment(lines->at(i), out);
+            segmenter_copy->segment(input_text, output_text);
             break;
 
         case 1:
-            segmenter_copy->normalize(lines->at(i), out);
+            segmenter_copy->normalize(input_text, output_text);
             break;
 
         default:
-            segmenter_copy->normalize_and_segment(lines->at(i), out);
+            segmenter_copy->normalize_and_segment(input_text, output_text);
             break;
         }
 
-        (*lines)[i] = out;
+        lines->at(i) = output_text;
     };
     delete segmenter_copy;
     return lines;
 }
 
-unsigned long run(std::istream* input_stream) {
-    unsigned long num_lines = 0;
+size_t run(FILE* input_stream) {
+    size_t num_lines = 0;
 
     ThreadPool pool(args.num_threads);
     std::queue<std::future<vecstr*>> result_queue;
     unsigned int result_queue_size = 0;
     unsigned int max_chunks = args.num_threads * 8;
 
-    vecstr* ibuffer = new vecstr();
-    ibuffer->reserve(CHUNKSIZE);
-    unsigned int ibuffer_size = 0;
+    vecstr* input_buffer = new vecstr();
+    input_buffer->reserve(CHUNKSIZE);
+    unsigned int input_buffer_size = 0;
 
     vecstr* obuffer;
 
-    std::string line;
-    while (getline(*input_stream, line)) {
-        ibuffer->push_back(line);
-        ++ibuffer_size;
+    char* line;
+    size_t length;
+    while ((line = fgetln(input_stream, &length)) != nullptr) {
+        line[length - 1] = 0;
+        input_buffer->push_back(std::string(line));
+        ++input_buffer_size;
 
-        if (ibuffer_size >= CHUNKSIZE) {
-            result_queue.push(pool.enqueue(segment_lines, ibuffer));
+        if (input_buffer_size >= CHUNKSIZE) {
+            result_queue.push(pool.enqueue(segment_lines, input_buffer));
             ++result_queue_size;
 
             if (result_queue_size >= max_chunks) {
@@ -103,14 +108,14 @@ unsigned long run(std::istream* input_stream) {
                 delete obuffer;
             }
 
-            ibuffer = new vecstr();
-            ibuffer->reserve(CHUNKSIZE);
-            ibuffer_size = 0;
+            input_buffer = new vecstr();
+            input_buffer->reserve(CHUNKSIZE);
+            input_buffer_size = 0;
         };
     };
 
-    if (ibuffer_size > 0) {
-        result_queue.push(pool.enqueue(segment_lines, ibuffer));
+    if (input_buffer_size > 0) {
+        result_queue.push(pool.enqueue(segment_lines, input_buffer));
     };
 
     while (!result_queue.empty()) {
@@ -183,18 +188,17 @@ int main(int argc, char** argv) {
         std::cerr << std::endl;
     };
 
+    FILE* input_stream;
+    if (args.input == "-") input_stream = stdin;
+    else input_stream = fopen(args.input.c_str(), "r");
+    if (input_stream == nullptr)
+        throw std::runtime_error("Input file not founds.");
+
     segmenter = new Segmenter(args.protected_dash_split);
 
     // Run
     auto begin = std::chrono::steady_clock::now();
-    unsigned long num_lines = 0;
-    if (args.input == "-") {
-        num_lines = run(&std::cin);
-    } else {
-        std::fstream input_stream;
-        input_stream.open(args.input, std::fstream::in);
-        num_lines = run(&input_stream);
-    }
+    size_t num_lines = run(input_stream);
 
     // Print out some statistics
     auto end = std::chrono::steady_clock::now();
