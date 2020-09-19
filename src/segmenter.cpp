@@ -1,7 +1,6 @@
 #include <unicode/regex.h>
 #include <unicode/brkiter.h>
 #include <unicode/normalizer2.h>
-#include <iostream>
 
 #include "fasttokenizer/segmenter.h"
 
@@ -69,8 +68,7 @@ Segmenter::~Segmenter() {
 };
 
 Segmenter* Segmenter::clone() {
-    // Note this function is just a dummy for now.
-    // Will be used when segmenter takes states for skipping patterns.
+    // Recreating a new segmenter is quick enough for current use cases.
     return new Segmenter(protected_dash_split);
 };
 
